@@ -1,198 +1,131 @@
 import streamlit as st
 import pandas as pd
+import os
+import json
 
-# 1. Page Configuration (Enterprise Theme & Mobile Responsive)
-st.set_page_config(
-    page_title="GlobeTrek | Enterprise Expense Suite",
-    page_icon="✈️",
-    layout="wide",
-    initial_sidebar_state="expanded"
-)
+# Set Page Title
+st.set_page_config(page_title="Trip Expense Ledger", page_icon="💰", layout="wide")
 
-# Custom Trip-Themed CSS UI Inject
-st.markdown("""
-    <style>
-        .main { background-color: #f8f9fa; }
-        .stMetric { background-color: #ffffff; padding: 15px; border-radius: 10px; border: 1px solid #e9ecef; box-shadow: 0 4px 6px rgba(0,0,0,0.02); }
-        div[data-testid="stForm"] { background-color: #ffffff; border-radius: 12px; padding: 25px; border: 1px solid #e9ecef; box-shadow: 0 4px 12px rgba(0,0,0,0.04); }
-        .stButton>button { width: 100%; border-radius: 6px; font-weight: 600; }
-        h1, h2, h3 { color: #1e293b; font-family: 'Inter', sans-serif; }
-    </style>
-""", unsafe_allow_html=True)
+# Persistent File Configuration on Linux Server
+DB_FILE = "trip_database.json"
 
-# 2. Initialize Session State
+def load_database():
+    """Loads records directly from the permanent JSON file."""
+    if os.path.exists(DB_FILE):
+        try:
+            with open(DB_FILE, "r") as f:
+                return json.load(f)
+        except:
+            return []
+    return []
+
+def save_database(data):
+    """Saves records permanently to the JSON file."""
+    with open(DB_FILE, "w") as f:
+        json.dump(data, f, indent=4)
+
+# Initialize in-memory session from permanent storage file
 if "transactions" not in st.session_state:
-    st.session_state.transactions = [
-        {"Name": "Alice", "Place/Item": "Grand Plaza Hotel", "Amount": 300.00, "Type": "Income (Pool Contribution)", "Category": "Lodging", "Comments": "Initial pool funding"},
-        {"Name": "Bob", "Place/Item": "Grand Plaza Hotel", "Amount": 300.00, "Type": "Income (Pool Contribution)", "Category": "Lodging", "Comments": "Initial pool funding"},
-        {"Name": "Alice", "Place/Item": "Airport Shuttle", "Amount": 65.50, "Type": "Expense (Out of Pocket)", "Category": "Transport", "Comments": "Van for group"},
-        {"Name": "Bob", "Place/Item": "Seafood Diner", "Amount": 120.00, "Type": "Expense (Out of Pocket)", "Category": "Food", "Comments": "Welcome team dinner"},
-        {"Name": "Charlie", "Place/Item": "Museum Passes", "Amount": 45.00, "Type": "Expense (Out of Pocket)", "Category": "Entertainment", "Comments": "Tickets"}
-    ]
+    st.session_state.transactions = load_database()
 
-# 3. Sidebar Header & Configuration Controls
-with st.sidebar:
-    st.markdown("## ✈️ GlobeTrek Suite")
-    st.markdown("*Corporate & Group Expense Management*")
-    st.divider()
-    
-    st.subheader("⚙️ System Control")
-    currency = st.selectbox("Preferred Currency", ["USD ($)", "EUR (€)", "GBP (£)", "INR (₹)"])
-    curr_sym = currency.split(" ")[1].replace("(", "").replace(")", "")
-    
-    st.divider()
-    st.markdown("### 📥 Portable Data Exchange")
-    if st.session_state.transactions:
-        df_export = pd.DataFrame(st.session_state.transactions)
-        csv = df_export.to_csv(index=False).encode('utf-8')
-        st.download_button(
-            label="Download Ledger Report (CSV)",
-            data=csv,
-            file_name="trip_expense_ledger.csv",
-            mime="text/csv",
-            use_container_width=True
-        )
-    
-    if st.button("Reset Master Database", type="secondary"):
-        st.session_state.transactions = []
-        st.rerun()
-
-# 4. Main App Branding Layout
-st.title("💼 Enterprise Trip Expense Ledger")
-st.caption("Synchronized multi-party balance settlement system for global travel tracking.")
+st.title("💰 Trip Ledger & Expense Tracker (INR ₹)")
+st.caption("Shared live ledger for our team. Accessible by everyone. Permanent storage enabled.")
 st.divider()
 
-# 5. Core Operational Columns
-col_form, col_analytics = st.columns([1, 2], gap="large")
+# Layout Configuration: Input Form (Left), Live Ledger & Metrics (Right)
+col_input, col_view = st.columns([1, 2], gap="large")
 
-with col_form:
-    st.subheader("📝 Record Entry")
-    with st.form("enterprise_expense_form", clear_on_submit=True):
-        name = st.text_input("Traveller Name", placeholder="Enter full name").strip().title()
-        place = st.text_input("Vendor / Place Name", placeholder="e.g., Chevron Gas, Hilton").strip().title()
-        amount = st.number_input(f"Transaction Amount ({curr_sym})", min_value=0.01, step=5.00, format="%.2f")
+with col_input:
+    st.subheader("📝 Log New Transaction")
+    with st.form("entry_form", clear_on_submit=True):
+        name = st.text_input("Person Name", placeholder="e.g., Rajesh").strip().title()
+        type_of_trans = st.selectbox("Transaction Action", ["Gave / Contributed to Pool", "Spent Out of Pocket"])
+        amount = st.number_input("Amount (₹)", min_value=1.0, step=50.0, format="%.2f")
+        place = st.text_input("Place Name / Item", placeholder="e.g., Gas Station, Dhabha").strip().title()
+        comments = st.text_area("Comments", placeholder="Add notes here...").strip()
         
-        trans_type = st.radio(
-            "Transaction Ledger Type",
-            options=["Income (Pool Contribution)", "Expense (Out of Pocket)"],
-            help="Income feeds the collective trip pot. Expenses are paid out of the traveler's personal funds."
-        )
-        
-        category = st.selectbox(
-            "Expense Segment Classification",
-            options=["Lodging", "Transport", "Food", "Entertainment", "Utilities", "Other"]
-        )
-        
-        comments = st.text_input("Operational Comments (Optional)", placeholder="Add context...")
-        
-        submit_button = st.form_submit_button("Commit Transaction to Ledger", type="primary")
+        submit = st.form_submit_button("Add to Shared Ledger")
 
-    if submit_button:
-        if not name or not place:
-            st.error("Validation Error: Traveller Name and Vendor/Place fields are required.")
+    if submit:
+        if not name or not place or amount <= 0:
+            st.error("Please enter valid details for Person, Place, and Amount.")
         else:
-            new_entry = {
-                "Name": name,
-                "Place/Item": place,
-                "Amount": float(amount),
-                "Type": trans_type,
-                "Category": category,
-                "Comments": comments.strip()
+            # Map type to strict simple categories
+            mapped_type = "Gave (Pool)" if "Gave" in type_of_trans else "Spent (Pocket)"
+            
+            # Form record structure
+            new_record = {
+                "Person": name,
+                "Action": mapped_type,
+                "Amount (₹)": float(amount),
+                "Place": place,
+                "Comments": comments
             }
-            st.session_state.transactions.append(new_entry)
-            st.toast(f"Success: Record logged for {name}!", icon="✅")
+            
+            # Commit to memory and disk storage instantly
+            st.session_state.transactions.append(new_record)
+            save_database(st.session_state.transactions)
+            st.success(f"Added successfully to permanent records!")
             st.rerun()
 
-with col_analytics:
-    st.subheader("📊 Analytical Balance & Summaries")
+    # Administrative Action: Direct Data Removal
+    if st.session_state.transactions:
+        st.divider()
+        st.subheader("🗑️ Delete a Row")
+        row_to_delete = st.number_input(
+            "Enter Row Index # to delete", 
+            min_value=0, 
+            max_value=len(st.session_state.transactions)-1, 
+            step=1
+        )
+        if st.button("Delete Selected Row From Database", type="secondary"):
+            deleted_item = st.session_state.transactions.pop(row_to_delete)
+            save_database(st.session_state.transactions)
+            st.toast(f"Removed item from {deleted_item['Person']} successfully!", icon="🗑️")
+            st.rerun()
+
+with col_view:
+    st.subheader("📊 Live Ledger Summary")
     
     if not st.session_state.transactions:
-        st.info("The ledger is currently clear. Enter a transaction in the left pane to initialize processing.")
+        st.info("No logs present. Use the panel on the left to start tracking.")
     else:
+        # Convert to Pandas dataframe
         df = pd.DataFrame(st.session_state.transactions)
         
-        # High-level KPI calculation
-        tot_inc = df[df["Type"] == "Income (Pool Contribution)"]["Amount"].sum()
-        tot_exp = df[df["Type"] == "Expense (Out of Pocket)"]["Amount"].sum()
-        net_cash = tot_inc - tot_exp
-        
-        kpi1, kpi2, kpi3 = st.columns(3)
-        kpi1.metric("Total Pool Assets (Income)", f"{curr_sym}{tot_inc:,.2f}")
-        kpi2.metric("Total Liabilities (Expenses)", f"{curr_sym}{tot_exp:,.2f}")
-        kpi3.metric("Net Vault Pool Remainder", f"{curr_sym}{net_cash:,.2f}", delta=f"{net_cash:,.2f}")
-        st.divider()
-        
-        # Individual Breakdown calculations
-        st.markdown("### 👥 Per-Person Matrix Breakdown")
-        unique_members = df["Name"].unique()
+        # Calculate Per-Person Matrix
         summary_rows = []
+        unique_people = df["Person"].unique()
         
-        for member in unique_members:
-            m_df = df[df["Name"] == member]
-            m_inc = m_df[m_df["Type"] == "Income (Pool Contribution)"]["Amount"].sum()
-            m_exp = m_df[m_df["Type"] == "Expense (Out of Pocket)"]["Amount"].sum()
+        for person in unique_people:
+            p_df = df[df["Person"] == person]
+            gave = p_df[p_df["Action"] == "Gave (Pool)"]["Amount (₹)"].sum()
+            spent = p_df[p_df["Action"] == "Spent (Pocket)"]["Amount (₹)"].sum()
             summary_rows.append({
-                "Traveller Name": member,
-                f"Total Income ({curr_sym})": m_inc,
-                f"Total Expense ({curr_sym})": m_exp,
-                f"Net Investment ({curr_sym})": m_inc + m_exp
+                "Person": person,
+                "Total Gave (₹)": gave,
+                "Total Spent (₹)": spent
             })
             
-        summary_df = pd.DataFrame(summary_rows).set_index("Traveller Name")
-        st.dataframe(summary_df, use_container_width=True)
+        summary_df = pd.DataFrame(summary_rows)
         
-        # Peer-To-Peer Settlement Engine (Enterprise feature)
-        st.markdown("### ⚖️ Auto-Settlement Engine (Who owes whom)")
+        # Display Totals Dashboard Metrics
+        total_pool_gave = df[df["Action"] == "Gave (Pool)"]["Amount (₹)"].sum()
+        total_out_spent = df[df["Action"] == "Spent (Pocket)"]["Amount (₹)"].sum()
         
-        # Calculation formula: Total expenses split equally vs what they already paid
-        total_trip_cost = tot_exp
-        num_people = len(unique_members)
+        m1, m2 = st.columns(2)
+        m1.metric("Total Pool Cash Given", f"₹{total_pool_gave:,.2f}")
+        m2.metric("Total Pocket Expenses Spent", f"₹{total_out_spent:,.2f}")
         
-        if num_people > 1 and total_trip_cost > 0:
-            share_per_person = total_trip_cost / num_people
-            st.caption(f"Target equal share per individual for this trip: **{curr_sym}{share_per_person:,.2f}**")
-            
-            balances = {}
-            for member in unique_members:
-                m_df = df[df["Name"] == member]
-                # What they actually paid out of pocket
-                paid = m_df[m_df["Type"] == "Expense (Out of Pocket)"]["Amount"].sum()
-                balances[member] = paid - share_per_person
-                
-            debtors = []
-            creditors = []
-            
-            for person, bal in balances.items():
-                if bal < -0.01:
-                    debtors.append({"name": person, "amount": abs(bal)})
-                elif bal > 0.01:
-                    creditors.append({"name": person, "amount": bal})
-                    
-            settlement_actions = []
-            d_idx, c_idx = 0, 0
-            
-            while d_idx < len(debtors) and c_idx < len(creditors):
-                deb = debtors[d_idx]
-                cred = creditors[c_idx]
-                
-                settle_amt = min(deb["amount"], cred["amount"])
-                settlement_actions.append(f"👉 **{deb['name']}** pays **{curr_sym}{settle_amt:,.2f}** to **{cred['name']}**")
-                
-                deb["amount"] -= settle_amt
-                cred["amount"] -= settle_amt
-                
-                if deb["amount"] <= 0.01: d_idx += 1
-                if cred["amount"] <= 0.01: c_idx += 1
-                
-            if settlement_actions:
-                for action in settlement_actions:
-                    st.info(action)
-            else:
-                st.success("🎉 All balances are perfectly settled evenly among members!")
-        else:
-            st.warning("Add expense logs for multiple travellers to compute cross-party balancing actions.")
-            
-        # Complete Logs History Table
-        st.divider()
-        st.markdown("### 📜 Real-Time Master Audit Ledger")
+        # Display Individual Totals Matrix
+        st.markdown("### 👥 Personal Breakdown Matrix")
+        st.dataframe(summary_df.set_index("Person"), use_container_width=True)
+        
+        # Display Simple Bar Chart Representation
+        st.markdown("### 📈 Visual Balance Comparison")
+        chart_data = summary_df.set_index("Person")
+        st.bar_chart(chart_data)
+        
+        # Master Log Table
+        st.markdown("### 📜 Shared Audit Table Ledger")
         st.dataframe(df, use_container_width=True)
