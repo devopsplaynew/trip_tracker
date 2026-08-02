@@ -31,8 +31,8 @@ class Database:
         with open(self.filepath, 'w') as f:
             json.dump(transactions, f, indent=2)
     
-    def add_transaction(self, name, place, amount, trans_type, comments="", date=None):
-        """Add a new transaction with optional date"""
+    def add_transaction(self, name, place, amount, trans_type, comments="", date=None, added_by=None):
+        """Add a new transaction (pending approval)"""
         transactions = self._load_data()
         
         # Generate new ID
@@ -52,27 +52,69 @@ class Database:
             "type": trans_type,
             "comments": comments.strip(),
             "date": date,
-            "timestamp": datetime.now().strftime("%d-%m-%Y %H:%M")
+            "timestamp": datetime.now().strftime("%d-%m-%Y %H:%M"),
+            "added_by": added_by or "unknown",
+            "approved": False,  # Pending approval
+            "approved_by": None,
+            "approved_date": None
         }
         
         transactions.append(transaction)
         self._save_data(transactions)
         return transaction
     
-    def delete_transaction(self, transaction_id):
-        """Delete a transaction by ID"""
+    def approve_transaction(self, transaction_id, approved_by):
+        """Approve a transaction"""
         transactions = self._load_data()
+        
+        for trans in transactions:
+            if trans.get("id") == transaction_id:
+                trans["approved"] = True
+                trans["approved_by"] = approved_by
+                trans["approved_date"] = datetime.now().strftime("%d-%m-%Y %H:%M")
+                break
+        
+        self._save_data(transactions)
+        return True
+    
+    def delete_transaction(self, transaction_id, deleted_by=None):
+        """Delete a transaction by ID (admin only)"""
+        transactions = self._load_data()
+        deleted_trans = None
+        
+        for trans in transactions:
+            if trans.get("id") == transaction_id:
+                deleted_trans = trans
+                break
+        
         transactions = [t for t in transactions if t.get("id") != transaction_id]
         self._save_data(transactions)
+        return deleted_trans
     
-    def get_all_transactions(self):
+    def get_all_transactions(self, include_pending=True):
         """Get all transactions sorted by newest first"""
         transactions = self._load_data()
+        if not include_pending:
+            transactions = [t for t in transactions if t.get("approved", False)]
         return sorted(transactions, key=lambda x: x.get("id", 0), reverse=True)
     
-    def get_summary(self):
+    def get_pending_transactions(self):
+        """Get only pending transactions"""
+        transactions = self._load_data()
+        return sorted(
+            [t for t in transactions if not t.get("approved", False)],
+            key=lambda x: x.get("id", 0),
+            reverse=True
+        )
+    
+    def get_summary(self, only_approved=True):
         """Get summary statistics"""
         transactions = self._load_data()
+        
+        # Only include approved transactions for summary
+        if only_approved:
+            transactions = [t for t in transactions if t.get("approved", False)]
+        
         if not transactions:
             return None
         
@@ -110,6 +152,9 @@ class Database:
         """Clear all transactions"""
         self._save_data([])
     
-    def get_transaction_count(self):
+    def get_transaction_count(self, only_approved=True):
         """Get total number of transactions"""
-        return len(self._load_data())
+        transactions = self._load_data()
+        if only_approved:
+            transactions = [t for t in transactions if t.get("approved", False)]
+        return len(transactions)
