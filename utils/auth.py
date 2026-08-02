@@ -8,32 +8,32 @@ CREDENTIALS = {
         "role": "admin",
         "name": "Administrator"
     },
-    "user1": {
+    "Lavanya": {
         "password": "Lavanya@123",
         "role": "user",
         "name": "Lavanya"
     },
-    "user2": {
+    "Uma": {
         "password": "Uma@123",
         "role": "user",
         "name": "Uma"
     },
-        "user3": {
-        "password": "Sankar@123",
+        "Sankarvel": {
+        "password": "Sankarvel@123",
         "role": "user",
         "name": "Sankarvel"
     },
-            "user4": {
+            "Balaji": {
         "password": "Balaji@123",
         "role": "user",
         "name": "Balaji"
     },
-                "user5": {
+                "Sangeetha": {
         "password": "Sangeetha@123",
         "role": "user",
         "name": "Sangeetha"
     },
-                    "user6": {
+                    "Pandiyan": {
         "password": "Pandiyan@123",
         "role": "user",
         "name": "Pandiyan"
@@ -91,11 +91,6 @@ def check_password():
             
             st.markdown("""
             <div style='background: #f8f9fa; padding: 10px; border-radius: 8px; margin-top: 10px;'>
-                <small style='color: #6c757d;'>
-                    <strong>Demo Credentials:</strong><br>
-                    Admin: admin / great<br>
-                    User: user1 / trip2024
-                </small>
             </div>
             """, unsafe_allow_html=True)
         
