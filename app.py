@@ -1,7 +1,6 @@
 import streamlit as st
 import pandas as pd
 import plotly.graph_objects as go
-import plotly.express as px
 from datetime import datetime
 import sys
 import os
@@ -10,251 +9,219 @@ import os
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 
 from utils.database import Database
-from utils.styles import apply_custom_styles
+from utils.styles import apply_mobile_styles
+from utils.auth import check_password, logout
 
 # Page Configuration
 st.set_page_config(
     page_title="Trip Expense Tracker",
     page_icon="✈️",
     layout="wide",
-    initial_sidebar_state="expanded"
+    initial_sidebar_state="collapsed"
 )
 
-# Apply custom styles
-apply_custom_styles()
+# Apply mobile styles
+apply_mobile_styles()
+
+# Check authentication
+if not check_password():
+    st.stop()
 
 # Initialize database
 db = Database()
 
-# App Header
-st.markdown("""
-<div class="animate-fade-in">
-    <h1 style="text-align: center; color: #1E3D59; margin-bottom: 10px;">✈️ Trip Expense Tracker</h1>
-    <p style="text-align: center; color: #6c757d; font-size: 1.2rem; margin-bottom: 30px;">
-        Track group contributions and expenses in real-time
-    </p>
-</div>
-""", unsafe_allow_html=True)
+# App Header with logout
+col_header1, col_header2 = st.columns([5, 1])
+with col_header1:
+    st.markdown("""
+    <div class="app-header">
+        <h2 style="margin: 0; font-size: 1.3rem;">✈️ Yelagiri Trip Expense Tracker</h2>
+    </div>
+    """, unsafe_allow_html=True)
+with col_header2:
+    if st.button("🚪 Logout", key="logout_btn", use_container_width=True):
+        logout()
 
-# Tabs for better organization
-tab1, tab2, tab3 = st.tabs(["📝 Add Transaction", "📊 Dashboard", "📜 History"])
+# Main Tabs
+tab1, tab2, tab3 = st.tabs(["📝 Add", "📊 Dashboard", "📜 History"])
 
+# Tab 1: Add Transaction
 with tab1:
-    col1, col2, col3 = st.columns([1, 2, 1])
-    
-    with col2:
-        st.markdown("### Add New Transaction")
+    with st.form("transaction_form", clear_on_submit=True):
+        name = st.text_input("👤 Name", placeholder="Enter name...")
         
-        with st.form("transaction_form", clear_on_submit=True):
-            name = st.text_input("👤 Your Name", placeholder="Enter your name...")
-            
-            col_form1, col_form2 = st.columns(2)
-            with col_form1:
-                place = st.text_input("📍 Place/Item", placeholder="e.g., Hotel, Restaurant")
-            with col_form2:
-                amount = st.number_input("💰 Amount ($)", min_value=0.01, step=1.0, format="%.2f")
-            
-            trans_type = st.radio(
-                "Transaction Type",
-                ["💚 Income (Money Added to Pool)", "❤️ Expense (Money Spent)"],
-                horizontal=True
-            )
-            
-            comments = st.text_area("📝 Comments (Optional)", placeholder="Add any notes...", max_chars=200)
-            
-            submitted = st.form_submit_button("✅ Add Transaction", use_container_width=True)
-            
-            if submitted:
-                if not name or not place or amount <= 0:
-                    st.error("⚠️ Please fill in all required fields with valid values.")
-                else:
-                    mapped_type = "Income" if "Income" in trans_type else "Expense"
-                    db.add_transaction(name, place, amount, mapped_type, comments)
-                    st.success(f"✅ Transaction added successfully for {name.strip().title()}!")
-                    st.balloons()
+        col1, col2 = st.columns(2)
+        with col1:
+            place = st.text_input("📍 Place/Item", placeholder="e.g., Hotel")
+        with col2:
+            amount = st.number_input("💰 Amount (₹)", min_value=1, step=10, value=100)
+        
+        trans_type = st.radio(
+            "Type",
+            ["💚 Income", "❤️ Expense"],
+            horizontal=True
+        )
+        
+        comments = st.text_input("📝 Note (optional)", placeholder="Add note...", max_chars=100)
+        
+        submitted = st.form_submit_button("✅ Add Transaction", use_container_width=True)
+        
+        if submitted:
+            if not name or not place or amount <= 0:
+                st.error("⚠️ Please fill all fields")
+            else:
+                mapped_type = "Income" if "Income" in trans_type else "Expense"
+                db.add_transaction(name, place, amount, mapped_type, comments)
+                st.success(f"✅ Added for {name.strip().title()}!")
+                st.balloons()
 
+# Tab 2: Dashboard
 with tab2:
     summary = db.get_summary()
     
     if summary is None:
-        st.info("📊 No transactions yet. Start by adding some transactions in the 'Add Transaction' tab!")
+        st.info("📊 No transactions yet. Start adding!")
     else:
-        # Top KPI Cards
+        # Compact KPI Cards in 3 columns
         col1, col2, col3 = st.columns(3)
         
         with col1:
             st.markdown(f"""
-            <div class="income-card">
-                <h3 style="margin: 0;">💰 Total Pool</h3>
-                <h2 style="margin: 10px 0;">${summary['total_income']:,.2f}</h2>
-                <p style="margin: 0; font-size: 0.9rem;">Total income contributed</p>
+            <div class="income-card slide-in">
+                <p class="card-title">💰 Total Pool</p>
+                <p class="card-amount">₹{summary['total_income']:,.0f}</p>
+                <p class="card-subtitle">Income contributed</p>
             </div>
             """, unsafe_allow_html=True)
         
         with col2:
             st.markdown(f"""
-            <div class="expense-card">
-                <h3 style="margin: 0;">💸 Total Spent</h3>
-                <h2 style="margin: 10px 0;">${summary['total_expense']:,.2f}</h2>
-                <p style="margin: 0; font-size: 0.9rem;">Total out-of-pocket expenses</p>
+            <div class="expense-card slide-in">
+                <p class="card-title">💸 Total Spent</p>
+                <p class="card-amount">₹{summary['total_expense']:,.0f}</p>
+                <p class="card-subtitle">Out-of-pocket</p>
             </div>
             """, unsafe_allow_html=True)
         
         with col3:
             balance = summary['total_income'] - summary['total_expense']
-            balance_color = "green" if balance >= 0 else "red"
+            balance_color = "#38ef7d" if balance >= 0 else "#f45c43"
             st.markdown(f"""
-            <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); 
-                        border-radius: 15px; padding: 20px; color: white; 
-                        box-shadow: 0 10px 20px rgba(0,0,0,0.1);">
-                <h3 style="margin: 0;">⚖️ Net Balance</h3>
-                <h2 style="margin: 10px 0; color: {balance_color};">${balance:,.2f}</h2>
-                <p style="margin: 0; font-size: 0.9rem;">Income minus expenses</p>
+            <div class="compact-card slide-in">
+                <p class="card-title">⚖️ Balance</p>
+                <p class="card-amount" style="color: {balance_color};">₹{balance:,.0f}</p>
+                <p class="card-subtitle">Net balance</p>
             </div>
             """, unsafe_allow_html=True)
         
-        st.markdown("<br>", unsafe_allow_html=True)
-        
-        # Charts Section
-        col_chart1, col_chart2 = st.columns(2)
-        
-        with col_chart1:
-            st.markdown("### 📊 Income vs Expense Distribution")
-            # Create pie chart
-            fig_pie = go.Figure(data=[go.Pie(
-                labels=['Income', 'Expense'],
-                values=[summary['total_income'], summary['total_expense']],
-                hole=.4,
-                marker_colors=['#11998e', '#eb3349']
-            )])
-            fig_pie.update_layout(
-                showlegend=True,
-                height=400,
-                margin=dict(t=0, b=0, l=0, r=0)
-            )
-            st.plotly_chart(fig_pie, use_container_width=True)
-        
-        with col_chart2:
-            st.markdown("### 👥 Per Person Breakdown")
-            # Create bar chart
-            per_person_data = pd.DataFrame(summary['per_person'])
-            
-            fig_bar = go.Figure(data=[
-                go.Bar(name='Income', x=per_person_data['Name'], 
-                      y=per_person_data['Income_Raw'], 
-                      marker_color='#11998e'),
-                go.Bar(name='Expense', x=per_person_data['Name'], 
-                      y=per_person_data['Expense_Raw'], 
-                      marker_color='#eb3349')
-            ])
-            fig_bar.update_layout(
-                barmode='group',
-                height=400,
-                margin=dict(t=0, b=0, l=0, r=0),
-                xaxis_title="Person",
-                yaxis_title="Amount ($)"
-            )
-            st.plotly_chart(fig_bar, use_container_width=True)
-        
-        # Detailed Table
-        st.markdown("### 📋 Individual Breakdown")
+        # Per Person Breakdown - Compact Table
+        st.markdown("### 👥 Individual Summary")
         display_df = pd.DataFrame(summary['per_person'])[['Name', 'Total Income', 'Total Expense', 'Net Balance']]
+        
+        # Color code net balance
+        def color_balance(val):
+            if '-' in str(val):
+                return 'color: #dc3545'
+            return 'color: #28a745'
+        
+        styled_df = display_df.style.applymap(color_balance, subset=['Net Balance'])
         st.dataframe(
-            display_df.set_index('Name'),
+            styled_df,
             use_container_width=True,
-            height=200
+            height=200,
+            hide_index=True
         )
+        
+        # Simple Chart
+        st.markdown("### 📊 Overview Chart")
+        fig = go.Figure(data=[
+            go.Bar(name='Income', x=display_df['Name'], y=summary['per_person'][i]['Income_Raw'], 
+                   marker_color='#11998e', text=[f"₹{x:,.0f}" for x in [d['Income_Raw'] for d in summary['per_person']]],
+                   textposition='auto'),
+            go.Bar(name='Expense', x=display_df['Name'], y=summary['per_person'][i]['Expense_Raw'], 
+                   marker_color='#eb3349', text=[f"₹{x:,.0f}" for x in [d['Expense_Raw'] for d in summary['per_person']]],
+                   textposition='auto')
+        ])
+        fig.update_layout(
+            barmode='group',
+            height=300,
+            margin=dict(t=10, b=10, l=10, r=10),
+            font=dict(size=11),
+            legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1)
+        )
+        st.plotly_chart(fig, use_container_width=True)
 
+# Tab 3: History with Delete Option
 with tab3:
-    summary = db.get_summary()
+    transactions = db.get_all_transactions()
     
-    if summary is None:
-        st.info("📜 No transaction history yet.")
+    if not transactions:
+        st.info("📜 No transactions yet")
     else:
-        st.markdown("### 📜 Complete Transaction History")
+        st.markdown("### 📜 Transaction History")
+        st.caption("Tap 🗑️ to delete a transaction")
         
-        # Filters
-        col_filter1, col_filter2 = st.columns(2)
-        with col_filter1:
-            filter_name = st.selectbox(
-                "Filter by Name",
-                ["All"] + list(summary['all_transactions']["name"].unique())
+        # Display transactions in a scrollable list
+        st.markdown('<div class="scroll-container">', unsafe_allow_html=True)
+        
+        for trans in transactions:
+            trans_type_class = "transaction-income" if trans["type"] == "Income" else "transaction-expense"
+            trans_icon = "💚" if trans["type"] == "Income" else "❤️"
+            
+            col1, col2, col3 = st.columns([3, 1, 0.5])
+            
+            with col1:
+                st.markdown(f"""
+                <div class="transaction-item {trans_type_class}">
+                    <div>
+                        <strong>{trans_icon} {trans['name']}</strong> - {trans['place']}<br>
+                        <small style="color: #6c757d;">{trans.get('comments', '')} | {trans.get('timestamp', '')}</small>
+                    </div>
+                </div>
+                """, unsafe_allow_html=True)
+            
+            with col2:
+                amount_color = "#11998e" if trans["type"] == "Income" else "#eb3349"
+                st.markdown(f"""
+                <div style="text-align: right; padding: 10px;">
+                    <span style="color: {amount_color}; font-weight: bold; font-size: 1.1rem;">
+                        ₹{trans['amount']:,.0f}
+                    </span>
+                </div>
+                """, unsafe_allow_html=True)
+            
+            with col3:
+                if st.button("🗑️", key=f"del_{trans['id']}", help="Delete this transaction"):
+                    db.delete_transaction(trans['id'])
+                    st.success("Deleted!")
+                    st.rerun()
+        
+        st.markdown('</div>', unsafe_allow_html=True)
+        
+        # Download and Reset buttons
+        st.markdown("---")
+        col1, col2 = st.columns(2)
+        with col1:
+            df_export = pd.DataFrame(transactions)
+            csv = df_export.to_csv(index=False)
+            st.download_button(
+                label="📥 Download CSV",
+                data=csv,
+                file_name=f"yelagiri_trip_{datetime.now().strftime('%Y%m%d')}.csv",
+                mime="text/csv",
+                use_container_width=True
             )
-        with col_filter2:
-            filter_type = st.selectbox(
-                "Filter by Type",
-                ["All", "Income", "Expense"]
-            )
-        
-        # Apply filters
-        filtered_df = summary['all_transactions']
-        if filter_name != "All":
-            filtered_df = filtered_df[filtered_df["name"] == filter_name]
-        if filter_type != "All":
-            filtered_df = filtered_df[filtered_df["type"] == filter_type]
-        
-        # Display filtered data
-        display_cols = ['name', 'place', 'amount', 'type', 'comments', 'timestamp']
-        st.dataframe(
-            filtered_df[display_cols].rename(columns={
-                'name': 'Name',
-                'place': 'Place',
-                'amount': 'Amount ($)',
-                'type': 'Type',
-                'comments': 'Comments',
-                'timestamp': 'Date/Time'
-            }),
-            use_container_width=True,
-            height=400
-        )
-        
-        # Download button
-        csv = filtered_df.to_csv(index=False)
-        st.download_button(
-            label="📥 Download Transaction History",
-            data=csv,
-            file_name=f"trip_expenses_{datetime.now().strftime('%Y%m%d')}.csv",
-            mime="text/csv",
-            use_container_width=True
-        )
-
-# Sidebar
-with st.sidebar:
-    st.markdown("### 🎯 Quick Stats")
-    
-    transaction_count = db.get_transaction_count()
-    st.metric("Total Transactions", transaction_count)
-    
-    if transaction_count > 0:
-        summary = db.get_summary()
-        st.metric("Participants", len(summary['per_person']))
-        st.metric("Average per Transaction", f"${(summary['total_income'] + summary['total_expense'])/transaction_count:,.2f}")
-    
-    st.markdown("---")
-    
-    st.markdown("### ℹ️ About")
-    st.info("""
-    This app helps you track group expenses during trips.
-    
-    **Income:** Money added to the common pool
-    **Expense:** Money spent from personal pocket
-    
-    All data is stored permanently on the server.
-    """)
-    
-    st.markdown("---")
-    
-    # Reset button
-    if st.button("🗑️ Reset All Data", use_container_width=True):
-        if st.warning("Are you sure? This cannot be undone!"):
-            if st.button("Yes, delete everything"):
-                db.clear_all()
-                st.success("All data has been cleared!")
-                st.rerun()
+        with col2:
+            if st.button("🗑️ Reset All", use_container_width=True):
+                confirm = st.checkbox("Confirm reset?")
+                if confirm:
+                    db.clear_all()
+                    st.success("All cleared!")
+                    st.rerun()
 
 # Footer
 st.markdown("---")
 st.markdown(
-    "<p style='text-align: center; color: #6c757d;'>Trip Expense Tracker © 2024 | Made with ❤️ using Streamlit</p>",
+    "<p style='text-align: center; color: #6c757d; font-size: 0.8rem;'>Yelagiri Trip 2024 | Made with ❤️</p>",
     unsafe_allow_html=True
 )
