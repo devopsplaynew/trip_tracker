@@ -31,14 +31,18 @@ class Database:
         with open(self.filepath, 'w') as f:
             json.dump(transactions, f, indent=2)
     
-    def add_transaction(self, name, place, amount, trans_type, comments=""):
-        """Add a new transaction"""
+    def add_transaction(self, name, place, amount, trans_type, comments="", date=None):
+        """Add a new transaction with optional date"""
         transactions = self._load_data()
         
         # Generate new ID
         new_id = 1
         if transactions:
             new_id = max(t.get("id", 0) for t in transactions) + 1
+        
+        # Use provided date or current date
+        if date is None:
+            date = datetime.now().strftime("%d-%m-%Y")
         
         transaction = {
             "id": new_id,
@@ -47,6 +51,7 @@ class Database:
             "amount": float(amount),
             "type": trans_type,
             "comments": comments.strip(),
+            "date": date,
             "timestamp": datetime.now().strftime("%d-%m-%Y %H:%M")
         }
         
