@@ -35,23 +35,35 @@ class Database:
         """Add a new transaction"""
         transactions = self._load_data()
         
+        # Generate new ID
+        new_id = 1
+        if transactions:
+            new_id = max(t.get("id", 0) for t in transactions) + 1
+        
         transaction = {
-            "id": len(transactions) + 1,
+            "id": new_id,
             "name": name.strip().title(),
             "place": place.strip().title(),
             "amount": float(amount),
             "type": trans_type,
             "comments": comments.strip(),
-            "timestamp": datetime.now().isoformat()
+            "timestamp": datetime.now().strftime("%d-%m-%Y %H:%M")
         }
         
         transactions.append(transaction)
         self._save_data(transactions)
         return transaction
     
+    def delete_transaction(self, transaction_id):
+        """Delete a transaction by ID"""
+        transactions = self._load_data()
+        transactions = [t for t in transactions if t.get("id") != transaction_id]
+        self._save_data(transactions)
+    
     def get_all_transactions(self):
-        """Get all transactions"""
-        return self._load_data()
+        """Get all transactions sorted by newest first"""
+        transactions = self._load_data()
+        return sorted(transactions, key=lambda x: x.get("id", 0), reverse=True)
     
     def get_summary(self):
         """Get summary statistics"""
@@ -74,11 +86,12 @@ class Database:
             
             summary_data.append({
                 "Name": name,
-                "Total Income": f"${income:,.2f}",
-                "Total Expense": f"${expense:,.2f}",
-                "Net Balance": f"${income - expense:,.2f}",
+                "Total Income": f"₹{income:,.2f}",
+                "Total Expense": f"₹{expense:,.2f}",
+                "Net Balance": f"₹{income - expense:,.2f}",
                 "Income_Raw": income,
-                "Expense_Raw": expense
+                "Expense_Raw": expense,
+                "Balance_Raw": income - expense
             })
         
         return {
