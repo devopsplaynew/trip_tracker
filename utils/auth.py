@@ -9,9 +9,34 @@ CREDENTIALS = {
         "name": "Administrator"
     },
     "user1": {
-        "password": "trip2024",
+        "password": "Lavanya@123",
         "role": "user",
-        "name": "Team Member"
+        "name": "Lavanya"
+    },
+    "user2": {
+        "password": "Uma@123",
+        "role": "user",
+        "name": "Uma"
+    },
+        "user3": {
+        "password": "Sankar@123",
+        "role": "user",
+        "name": "Sankarvel"
+    },
+            "user4": {
+        "password": "Balaji@123",
+        "role": "user",
+        "name": "Balaji"
+    },
+                "user5": {
+        "password": "Sangeetha@123",
+        "role": "user",
+        "name": "Sangeetha"
+    },
+                    "user6": {
+        "password": "Pandiyan@123",
+        "role": "user",
+        "name": "Pandiyan"
     }
 }
 
