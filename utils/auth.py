@@ -8,32 +8,32 @@ CREDENTIALS = {
         "role": "admin",
         "name": "Administrator"
     },
-    "Lavanya": {
+    "lavanya": {
         "password": "Lavanya@123",
         "role": "user",
         "name": "Lavanya"
     },
-    "Uma": {
+    "uma": {
         "password": "Uma@123",
         "role": "user",
         "name": "Uma"
     },
-        "Sankarvel": {
+    "sankarvel": {
         "password": "Sankarvel@123",
         "role": "user",
         "name": "Sankarvel"
     },
-            "Balaji": {
+    "balaji": {
         "password": "Balaji@123",
         "role": "user",
         "name": "Balaji"
     },
-                "Sangeetha": {
+    "sangeetha": {
         "password": "Sangeetha@123",
         "role": "user",
         "name": "Sangeetha"
     },
-                    "Pandiyan": {
+    "pandiyan": {
         "password": "Pandiyan@123",
         "role": "user",
         "name": "Pandiyan"
@@ -45,7 +45,7 @@ def check_password():
     
     def password_entered():
         """Checks whether a password entered by the user is correct."""
-        username = st.session_state.get("username", "").lower()
+        username = st.session_state.get("username", "").lower().strip()
         password = st.session_state.get("password", "")
         
         if username in CREDENTIALS:
@@ -88,11 +88,6 @@ def check_password():
                 st.error(st.session_state["login_error"])
             
             st.button("🔐 Login", on_click=password_entered, use_container_width=True)
-            
-            st.markdown("""
-            <div style='background: #f8f9fa; padding: 10px; border-radius: 8px; margin-top: 10px;'>
-            </div>
-            """, unsafe_allow_html=True)
         
         return False
     else:
